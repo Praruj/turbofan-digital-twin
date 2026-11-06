@@ -32,7 +32,7 @@ from turbotwin.features import last_rows
 from turbotwin.metrics import METRICS, bootstrap_ci, coverage, paired_diff_ci
 from turbotwin.models import METHODS, ModelConfig, build_tables, fit_predict
 from turbotwin.simulator import FleetSpec, simulate_fleet
-from turbotwin.thermo import SENSORS
+from turbotwin.thermo import SENSORS, jacobian
 from turbotwin.twin import DigitalTwin, TwinConfig
 
 
@@ -82,7 +82,7 @@ def get_data(cfg: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFrame, str]:
 
 # ---------------------------------------------------------------------------- validate
 def validate(twin: DigitalTwin, train: pd.DataFrame, test: pd.DataFrame, cfg: dict[str, Any]) -> dict[str, Any]:
-    assert twin.noise is not None
+    assert twin.noise is not None and twin.prior is not None and twin.direction is not None
     out: dict[str, Any] = {}
     w = 1.0 / twin.noise.sigma
     tc = twin.cfg
@@ -109,8 +109,6 @@ def validate(twin: DigitalTwin, train: pd.DataFrame, test: pd.DataFrame, cfg: di
     dev_tr, _ = deviations(train)
     dev_te, _obs_te = deviations(test)
     _, _, vt = np.linalg.svd(dev_tr * w, full_matrices=False)
-    from turbotwin.thermo import jacobian
-
     jac2 = jacobian(twin.design)[:, :2] * w[:, None]
     jac1 = (jacobian(twin.design)[:, :2] @ twin.direction)[:, None] * w[:, None]
     recon: dict[str, dict[str, float]] = {}
@@ -196,7 +194,7 @@ def benchmark(
     tables = build_tables(train, test, tcfg, mcfg)
     preds = fit_predict(tables, mcfg, seed=cfg["seed"])
     idx = last_rows(test)
-    pos = test.index.get_indexer(idx)
+    pos = test.index.get_indexer(pd.Index(idx))
     y_raw = test["rul"].to_numpy(dtype=float)[pos]
     y = np.minimum(y_raw, mcfg.rul_cap)
     point = {m: preds.point[m][pos] for m in METHODS}
@@ -225,7 +223,7 @@ def scarcity(train: pd.DataFrame, test: pd.DataFrame, cfg: dict[str, Any]) -> li
     tcfg, mcfg = TwinConfig.from_dict(cfg["twin"]), ModelConfig.from_dict(cfg["models"])
     units = np.unique(train["unit"])
     idx = last_rows(test)
-    pos = test.index.get_indexer(idx)
+    pos = test.index.get_indexer(pd.Index(idx))
     y = test["rul"].to_numpy(dtype=float)[pos]
     rows = []
     for n in sc["n_train"]:
