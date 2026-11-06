@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: |
+          ruff check src tests app
+          ruff format --check src tests app
+      - name: Type-check
+        run: mypy
+      - name: Unit + integration tests
+        run: pytest
+      - name: Smoke pipeline (simulated fleet, no download)
+        run: python -m turbotwin.pipeline --config configs/smoke.yaml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-results
+          path: results/smoke

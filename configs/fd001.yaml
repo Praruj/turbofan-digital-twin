@@ -1,0 +1,28 @@
+# Full experiment on NASA C-MAPSS FD001 (sea level, HPC degradation).
+seed: 0
+n_boot: 2000
+output_dir: results/fd001
+data:
+  source: cmapss
+  raw_dir: data/raw
+  subset: FD001
+twin:
+  healthy_cycles: 30
+  baseline_cycles: 20
+  eol_cycles: 10
+  n_grid: 25
+  process_sd_grid: [1.0e-5, 3.0e-5, 1.0e-4, 3.0e-4]
+  meas_extra_grid: [0.0, 1.0e-3, 2.0e-3]
+models:
+  rul_cap: 125
+  window: 30
+  n_folds: 5
+  interval: 0.8
+  conformal_bins: [40, 80]
+validate:
+  n_sim: 500
+  n_recovery: 100
+scarcity:
+  n_train: [5, 10, 20, 50, 100]
+  repeats: 5
+stages: [validate, benchmark, scarcity, figures]
